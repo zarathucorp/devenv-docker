@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y \
     build-essential \ 
     locales
 
+# Install supervisord
+RUN apt-get install -y supervisor
+
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
@@ -32,9 +35,13 @@ ENV LANG en_US.UTF-8
 # RUN su - -c "R -e \"install.packages('shiny')\""
 
 # Install 차라투 개발 Dependencies
-RUN R -e "install.packages(c('shiny', 'quarto', 'rmarkdown', 'markdown', 'DT', 'data.table', 'ggplot2', 'devtools', 'epiDisplay', 'tableone', 'svglite', 'plotROC', 'pROC', 'labelled', 'geepack', 'lme4', 'PredictABEL', 'shinythemes', 'maxstat', 'manhattanly', 'Cairo', 'future', 'promises', 'GGally', 'fst', 'blogdown', 'metafor', 'roxygen2', 'MatchIt', 'distill', 'lubridate', 'testthat', 'rversions', 'spelling', 'rhub', 'remotes', 'ggpmisc', 'RefManageR', 'tidyr', 'shinytest', 'ggpubr', 'kableExtra', 'timeROC', 'survC1', 'survIDINRI', 'colourpicker', 'shinyWidgets', 'devEMF', 'see', 'aws.s3', 'epiR', 'zip', 'keyring', 'shinymanager', 'kappaSize', 'irr', 'gsDesign', 'jtools', 'svydiags', 'shinyBS', 'highcharter', 'forestplot', 'qgraph', 'bootnet', 'rhandsontable', 'meta', 'showtext', 'officer', 'rvg', 'httr', 'shinybrowser', 'pins', 'paws.storage'))" && \
-R -e "remotes::install_github(c('jinseob2kim/jstable', 'jinseob2kim/jskm', 'emitanaka/shinycustomloader', 'Appsilon/shiny.i18n', 'metrumresearchgroup/sinew', 'jinseob2kim/jsmodule', 'yihui/xaringan', 'emitanaka/anicon'))" && \
-R -e "shinytest::installDependencies()" 
+COPY zarathu/dependencies /temp
+RUN ls /temp
+RUN Rscript "/temp/CRAN.R"
+RUN Rscript "/temp/REMOTE.R"
+# RUN R -e "install.packages(c('shiny', 'quarto', 'rmarkdown', 'markdown', 'DT', 'data.table', 'ggplot2', 'devtools', 'epiDisplay', 'tableone', 'svglite', 'plotROC', 'pROC', 'labelled', 'geepack', 'lme4', 'PredictABEL', 'shinythemes', 'maxstat', 'manhattanly', 'Cairo', 'future', 'promises', 'GGally', 'fst', 'blogdown', 'metafor', 'roxygen2', 'MatchIt', 'distill', 'lubridate', 'testthat', 'rversions', 'spelling', 'rhub', 'remotes', 'ggpmisc', 'RefManageR', 'tidyr', 'shinytest', 'ggpubr', 'kableExtra', 'timeROC', 'survC1', 'survIDINRI', 'colourpicker', 'shinyWidgets', 'devEMF', 'see', 'aws.s3', 'epiR', 'zip', 'keyring', 'shinymanager', 'kappaSize', 'irr', 'gsDesign', 'jtools', 'svydiags', 'shinyBS', 'highcharter', 'forestplot', 'qgraph', 'bootnet', 'rhandsontable', 'meta', 'showtext', 'officer', 'rvg', 'httr', 'shinybrowser', 'pins', 'paws.storage'))"
+# RUN R -e "remotes::install_github(c('jinseob2kim/jstable', 'jinseob2kim/jskm', 'emitanaka/shinycustomloader', 'Appsilon/shiny.i18n', 'metrumresearchgroup/sinew', 'jinseob2kim/jsmodule', 'yihui/xaringan', 'emitanaka/anicon'))"
+RUN R -e "shinytest::installDependencies()" 
 
 # Install Shiny Server
 # RUN wget https://download3.rstudio.org/ubuntu-18.04/x86_64/shiny-server-1.5.22.1017-amd64.deb \
@@ -59,9 +66,12 @@ COPY shiny-server.conf /etc/shiny-server/shiny-server.conf
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/create_user.sh
 RUN /usr/local/bin/create_user.sh limcw limcw
 
+# Copy supervisord configuration
+COPY supervisord.conf /etc/supervisord.conf
+
 # Expose ports
 EXPOSE 3838 8787 
 # 8443
 
 # Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["bin/bash", "/usr/local/bin/entrypoint.sh"]
