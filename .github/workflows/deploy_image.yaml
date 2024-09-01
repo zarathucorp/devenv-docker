@@ -1,4 +1,4 @@
-name: Build and Push Docker Image Manually(Core)
+name: Build and Push Docker Image
 on:
   push:
 
@@ -42,7 +42,7 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v4
         with:
-          file: core.dockerfile
+          file: dockerfile
           push: true
           tags: |
             dao0312/zarathu-dev:latest
