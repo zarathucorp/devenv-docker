@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     build-essential \ 
-    locales
+    locales \
+    vim
 
 # Install supervisord
 RUN apt-get install -y supervisor
@@ -48,7 +49,23 @@ COPY create_user.sh /usr/local/bin/create_user.sh
 COPY shiny-server.conf /etc/shiny-server/shiny-server.conf
 
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/create_user.sh
-RUN /usr/local/bin/create_user.sh limcw limcw
+
+# Define argument for username and password with default values
+ARG USERNAME=limcw
+ARG PASSWORD=limcw
+
+# Create the user with specified username and password
+RUN /usr/local/bin/create_user.sh ${USERNAME} ${PASSWORD} yes
+
+# Define an argument for using Google Authenticator
+ARG USE_GOOGLE_AUTHENTICATOR=false
+
+# If USE_GOOGLE_AUTHENTICATOR is true, copy and run the google-authenticator script
+RUN if [ "$USE_GOOGLE_AUTHENTICATOR" = "true" ]; then \
+    cp /path/to/google-authenticator.sh /usr/local/bin/google-authenticator.sh && \
+    chmod +x /usr/local/bin/google-authenticator.sh && \
+    /usr/local/bin/google-authenticator.sh; \
+    fi
 
 # Copy supervisord configuration
 COPY supervisord.conf /etc/supervisord.conf
