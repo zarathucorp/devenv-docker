@@ -47,9 +47,10 @@ RUN /rocker_scripts/install_rstudio.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY create_user.sh /usr/local/bin/create_user.sh
 COPY google-authenticator.sh /usr/local/bin/google-authenticator.sh
+COPY cleanup_rstudio_session.sh /usr/local/bin/cleanup_rstudio_session.sh
 COPY shiny-server.conf /etc/shiny-server/shiny-server.conf
 
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/create_user.sh /usr/local/bin/google-authenticator.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/create_user.sh /usr/local/bin/google-authenticator.sh /usr/local/bin/cleanup_rstudio_session.sh
 
 # Define argument for username and password with default values
 ARG USERNAME=limcw
