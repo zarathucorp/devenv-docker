@@ -1,7 +1,12 @@
 #!/bin/bash
 
-# Prompt for username
-read -p "유저 이름 입력: " USERNAME
+# Check if username is provided as a parameter
+if [ -z "$1" ]; then
+    echo "사용법: $0 <유저이름>"
+    exit 1
+fi
+
+USERNAME=$1
 
 # Remove RStudio directories for the user
 rm -rf "/home/$USERNAME/.local/share/rstudio"
