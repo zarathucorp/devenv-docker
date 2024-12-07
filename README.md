@@ -45,3 +45,5 @@ To save storage, use -v option.
 ## **Please leave message to issue tab for any inquiries**
 
 I'll be happy to help you.
+
+For example, I'm using nginx for https support. If you want to know how, leave it at issue tab!
