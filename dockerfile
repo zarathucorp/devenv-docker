@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y \
     locales \
     vim
 
-# Install supervisord
-RUN apt-get install -y supervisor
+# Keep SSH proxy target available after restarts
+RUN apt-get install -y supervisor openssh-server
 
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
@@ -63,7 +63,7 @@ RUN /usr/local/bin/create_user.sh ${USERNAME} ${PASSWORD} yes
 COPY supervisord.conf /etc/supervisord.conf
 
 # Expose ports
-EXPOSE 3838 8787 
+EXPOSE 3838 8787 22
 
 # Set the entrypoint
 ENTRYPOINT ["/bin/bash", "/usr/local/bin/entrypoint.sh"]
