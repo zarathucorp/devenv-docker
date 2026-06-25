@@ -6,12 +6,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-transport-https \
     build-essential \
     ca-certificates \
+    cmake \
     curl \
     dirmngr \
     gdebi-core \
     git \
     gnupg \
     libcairo2-dev \
+    libuv1-dev \ 
+    libudunits2-dev \ 
+    libharfbuzz-dev \
+    libfribidi-dev \
     libcurl4-gnutls-dev \
     libpam-google-authenticator \
     libssl-dev \
