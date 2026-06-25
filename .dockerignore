@@ -1,0 +1,7 @@
+.git
+.github
+.DS_Store
+*.log
+tmp
+pdf_output
+pdf_output_test

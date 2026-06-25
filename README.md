@@ -1,49 +1,174 @@
-# How to run?
+# Zarathu Devenv Docker
 
-## Get Image
+R/Shiny, RStudio Server, SSH를 함께 제공하는 회사 개발용 컨테이너입니다.
 
-You can select pre-built image or build yourself.
+기본 이미지에는 회사 사용자 계정이나 고정 비밀번호를 만들지 않습니다. 계정은 컨테이너 시작 시 env로 부트스트랩하거나, 실행 후 `devenv-admin`으로 생성합니다.
 
-### Use pre-build image
+## Build
 
-See [Docker Hub](https://hub.docker.com/r/dao0312/zarathu_dev)
+```bash
+docker build -t devenv-docker:latest .
+```
 
-### Build
+CI는 `Dockerfile`을 사용해 Docker Hub와 GitHub Container Registry에 이미지를 배포합니다.
 
-or you can build yourself.
+## Persistent home volume
 
-At first, clone this repository by
+`/home`은 반드시 이미지/컨테이너 내부가 아니라 별도 Docker volume에 마운트해서 사용합니다. 이렇게 해야 이미지를 업데이트하거나 컨테이너를 새로 만들어도 사용자 파일, Shiny 앱, RStudio 설정, SSH key, OTP secret이 유지됩니다.
 
-`git clone https://github.com/zarathucorp/devenv-docker`
+```bash
+docker volume create zarathu-home
+```
 
-Move to folder
+실행할 때는 항상 아래처럼 `/home`에 연결합니다.
 
-`cd devenv-docker`
+```bash
+-v zarathu-home:/home
+```
 
-Run
+Linux 계정 자체와 그룹 membership은 `/home`에 저장되지 않습니다. 컨테이너를 새로 만든 뒤에는 `devenv-admin`으로 같은 계정을 다시 생성해야 합니다.
 
-`docker build -t devenv-docker:v241207 .`
+## Run without a bootstrap user
 
-Tag is optional.
+```bash
+docker run -itd \
+  --name zarathu-devenv \
+  -p 3838:3838 \
+  -p 8787:8787 \
+  -p 22:22 \
+  -v zarathu-home:/home \
+  devenv-docker:latest
+```
 
-## Run Image
+이 방식으로 시작하면 사용자 계정이 없습니다. 컨테이너에 root로 들어가서 계정을 만듭니다.
 
-It uses two ports, 3838 and 8787.
+```bash
+docker exec -it zarathu-devenv bash
+devenv-admin user add alice --password 'change-me' --sudo no
+```
 
-Run
+Shiny 앱은 `http://<host>:3838/alice/<app-name>/` 형태로 접근합니다. RStudio는 `http://<host>:8787`에서 Linux 계정으로 로그인합니다.
 
-`docker run -itd -p 3838:3838 -p 8787:8787 -v <host volume location>:/home devenv-docker:v241207`
+## Run with a bootstrap user
 
-You can access localhost:3838/shiny/<user_name> for Shiny Server and localhost:8787 for RStudio Server
+비밀번호를 파일로 넘기는 방식을 권장합니다.
 
-#### Why volume share is important?
+```bash
+printf '%s' 'change-me' > /srv/zarathu-bootstrap-password
 
-Without volume share, container usage will get more and more bigger.
+docker run -itd \
+  --name zarathu-devenv \
+  -p 3838:3838 \
+  -p 8787:8787 \
+  -p 22:22 \
+  -v zarathu-home:/home \
+  -v /srv/zarathu-bootstrap-password:/run/secrets/bootstrap-password:ro \
+  -e DEVENV_BOOTSTRAP_USER=alice \
+  -e DEVENV_BOOTSTRAP_PASSWORD_FILE=/run/secrets/bootstrap-password \
+  -e DEVENV_BOOTSTRAP_SUDO=no \
+  devenv-docker:latest
+```
 
-To save storage, use -v option.
+이미 존재하는 사용자는 기본적으로 비밀번호를 덮어쓰지 않습니다. 덮어써야 하면 `DEVENV_BOOTSTRAP_FORCE_PASSWORD=true`를 추가합니다.
 
-## **Please leave message to issue tab for any inquiries**
+## Account management
 
-I'll be happy to help you.
+컨테이너 안에서 `devenv-admin`을 사용합니다.
 
-For example, I'm using nginx for https support. If you want to know how, leave it at issue tab!
+```bash
+devenv-admin user add alice --password 'change-me' --sudo no
+devenv-admin user passwd alice
+devenv-admin user sudo alice on
+devenv-admin user key add alice --ssh-key 'ssh-ed25519 AAAA... alice@example'
+devenv-admin user key list alice
+devenv-admin user delete alice --remove-home
+```
+
+`devenv-admin`은 컨테이너 안에서 `/usr/local/bin/devenv-admin`으로 실행되고, 내부 구현은 `/usr/local/lib/devenv-admin` 아래 기능별 모듈로 분리됩니다.
+
+## SSH policy
+
+SSH는 VPN 또는 내부망에서만 노출하는 전제입니다. 기본값은 비밀번호 인증 비활성화입니다.
+
+컨테이너 시작 시 설정:
+
+```bash
+-e DEVENV_SSH_PASSWORD_AUTH=false
+```
+
+실행 중 변경:
+
+```bash
+devenv-admin ssh password-auth status
+devenv-admin ssh password-auth on
+devenv-admin ssh password-auth off
+```
+
+SSH 키는 `devenv-admin user key add`로 사용자별 `authorized_keys`에 추가합니다.
+
+## RStudio OTP
+
+RStudio TOTP 로그인을 옵션으로 사용할 수 있습니다. 기본값은 비활성화입니다.
+
+컨테이너 시작 시 OTP PAM 모듈 활성화:
+
+```bash
+-e DEVENV_RSERVER_OTP=true
+```
+
+실행 중 활성화 및 사용자 초기화:
+
+```bash
+devenv-admin otp enable
+devenv-admin otp init alice
+devenv-admin otp status
+devenv-admin otp disable
+```
+
+OTP를 켜면 `otp_exempt` 시스템 그룹이 생성됩니다. 일반 사용자는 RStudio 비밀번호 입력창에 비밀번호가 아니라 OTP만 입력합니다. OTP를 면제하고 비밀번호 로그인을 허용할 사용자는 아래 명령으로 관리합니다.
+
+```bash
+devenv-admin otp exempt add alice
+devenv-admin otp exempt list
+devenv-admin otp exempt remove alice
+```
+
+`otp_exempt` 사용자는 OTP가 활성화되어 있어도 OTP 없이 기존 비밀번호만으로 로그인할 수 있습니다. OTP가 켜져 있고 `otp_exempt`가 아닌 사용자는 `devenv-admin otp init <user>`로 OTP secret을 먼저 만들어야 로그인할 수 있습니다.
+
+사용자가 터미널에서 직접 `google-authenticator`를 실행해 자기 홈 디렉터리에 OTP secret을 만들어도 됩니다. `devenv-admin otp init <user>`는 root가 같은 초기화 명령을 해당 사용자로 대신 실행해 주는 관리용 편의 명령입니다.
+
+## Operations
+
+상태 점검:
+
+```bash
+devenv-admin status
+devenv-admin doctor
+devenv-admin healthcheck
+```
+
+RStudio 세션 초기화:
+
+```bash
+devenv-admin rstudio reset alice
+```
+
+Shiny 앱 디렉터리 초기화:
+
+```bash
+devenv-admin shiny init alice
+```
+
+## External access
+
+RStudio와 Shiny를 외부망에 열 경우 컨테이너를 직접 TLS 종단점으로 쓰지 말고, 호스트나 인프라 계층의 reverse proxy를 앞에 둡니다. RStudio는 WebSocket을 사용하므로 proxy에서 WebSocket upgrade와 충분한 timeout을 허용해야 합니다.
+
+권장 노출 모델:
+
+- SSH: VPN 또는 내부망 전용
+- RStudio: reverse proxy + TLS + 접근 제어
+- Shiny: reverse proxy + TLS + 필요한 앱별 접근 제어
+
+## Package installation
+
+CRAN 패키지는 `zarathu/dependencies/CRAN.R`, GitHub 패키지는 `zarathu/dependencies/REMOTE.R`에서 관리합니다.

@@ -1,0 +1,174 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_LIB_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)/lib/devenv-admin"
+LIB_DIR="${DEVENV_ADMIN_LIB_DIR:-}"
+
+if [ -z "$LIB_DIR" ]; then
+    if [ -d "$LOCAL_LIB_DIR" ]; then
+        LIB_DIR="$LOCAL_LIB_DIR"
+    else
+        LIB_DIR="/usr/local/lib/devenv-admin"
+    fi
+fi
+
+for module in common shiny users ssh otp rstudio status; do
+    # shellcheck source=/dev/null
+    source "${LIB_DIR}/${module}.sh"
+done
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  devenv-admin user add USER [--password PASS|--password-file FILE|--password-stdin] [--force-password] [--sudo yes|no] [--ssh-key KEY|--ssh-key-file FILE]
+  devenv-admin user delete USER [--remove-home]
+  devenv-admin user passwd USER [--password PASS|--password-file FILE|--password-stdin]
+  devenv-admin user sudo USER on|off
+  devenv-admin user key add USER (--ssh-key KEY|--ssh-key-file FILE|KEY)
+  devenv-admin user key remove USER (--ssh-key KEY|--ssh-key-file FILE|KEY)
+  devenv-admin user key list USER
+  devenv-admin rstudio reset USER
+  devenv-admin shiny init USER
+  devenv-admin shiny list USER
+  devenv-admin ssh password-auth on|off|status [--no-restart]
+  devenv-admin otp enable|disable|status
+  devenv-admin otp init USER
+  devenv-admin otp exempt add|remove USER
+  devenv-admin otp exempt list
+  devenv-admin status
+  devenv-admin doctor
+  devenv-admin healthcheck
+USAGE
+}
+
+main() {
+    local command="${1:-}"
+    shift || true
+
+    case "$command" in
+        user)
+            local user_command="${1:-}"
+            shift || true
+            case "$user_command" in
+                add)
+                    [ "$#" -ge 1 ] || die "usage: devenv-admin user add USER ..."
+                    user_add "$@"
+                    ;;
+                delete)
+                    [ "$#" -ge 1 ] || die "usage: devenv-admin user delete USER [--remove-home]"
+                    user_delete "$@"
+                    ;;
+                passwd)
+                    [ "$#" -ge 1 ] || die "usage: devenv-admin user passwd USER ..."
+                    user_passwd "$@"
+                    ;;
+                sudo)
+                    [ "$#" -eq 2 ] || die "usage: devenv-admin user sudo USER on|off"
+                    set_user_sudo "$1" "$2"
+                    ;;
+                key)
+                    [ "$#" -ge 2 ] || die "usage: devenv-admin user key add|remove|list USER ..."
+                    user_key "$@"
+                    ;;
+                *)
+                    usage
+                    exit 1
+                    ;;
+            esac
+            ;;
+        rstudio)
+            [ "${1:-}" = "reset" ] && [ "$#" -eq 2 ] || die "usage: devenv-admin rstudio reset USER"
+            rstudio_reset "$2"
+            ;;
+        shiny)
+            local shiny_command="${1:-}"
+            shift || true
+            case "$shiny_command" in
+                init)
+                    [ "$#" -eq 1 ] || die "usage: devenv-admin shiny init USER"
+                    shiny_init "$1"
+                    ;;
+                list)
+                    [ "$#" -eq 1 ] || die "usage: devenv-admin shiny list USER"
+                    shiny_list "$1"
+                    ;;
+                *)
+                    die "usage: devenv-admin shiny init|list USER"
+                    ;;
+            esac
+            ;;
+        ssh)
+            [ "${1:-}" = "password-auth" ] || die "usage: devenv-admin ssh password-auth on|off|status"
+            shift
+            ssh_password_auth "$@"
+            ;;
+        otp)
+            local otp_command="${1:-}"
+            shift || true
+            case "$otp_command" in
+                enable)
+                    [ "$#" -eq 0 ] || die "usage: devenv-admin otp enable"
+                    otp_enable
+                    ;;
+                disable)
+                    [ "$#" -eq 0 ] || die "usage: devenv-admin otp disable"
+                    otp_disable
+                    ;;
+                status)
+                    [ "$#" -eq 0 ] || die "usage: devenv-admin otp status"
+                    otp_status
+                    ;;
+                init)
+                    [ "$#" -eq 1 ] || die "usage: devenv-admin otp init USER"
+                    otp_init "$1"
+                    ;;
+                exempt)
+                    local exempt_command="${1:-}"
+                    shift || true
+                    case "$exempt_command" in
+                        add)
+                            [ "$#" -eq 1 ] || die "usage: devenv-admin otp exempt add USER"
+                            otp_exempt_add "$1"
+                            ;;
+                        remove)
+                            [ "$#" -eq 1 ] || die "usage: devenv-admin otp exempt remove USER"
+                            otp_exempt_remove "$1"
+                            ;;
+                        list)
+                            [ "$#" -eq 0 ] || die "usage: devenv-admin otp exempt list"
+                            otp_exempt_list
+                            ;;
+                        *)
+                            die "usage: devenv-admin otp exempt add|remove USER or devenv-admin otp exempt list"
+                            ;;
+                    esac
+                    ;;
+                *)
+                    die "usage: devenv-admin otp enable|disable|init USER|status|exempt"
+                    ;;
+            esac
+            ;;
+        status)
+            [ "$#" -eq 0 ] || die "usage: devenv-admin status"
+            status
+            ;;
+        doctor)
+            [ "$#" -eq 0 ] || die "usage: devenv-admin doctor"
+            doctor
+            ;;
+        healthcheck)
+            [ "$#" -eq 0 ] || die "usage: devenv-admin healthcheck"
+            healthcheck
+            ;;
+        -h | --help | help)
+            usage
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
