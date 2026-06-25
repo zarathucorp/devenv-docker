@@ -1,4 +1,4 @@
-FROM rocker/shiny:4.5.1
+FROM rocker/shiny:4.6.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -26,6 +26,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpam-google-authenticator \
     libssl-dev \
     libxt-dev \
+    libudunits2-dev \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    libsqlite3-dev \
     libxml2-dev \
     locales \
     openssh-server \
