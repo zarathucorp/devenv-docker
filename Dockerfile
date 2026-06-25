@@ -39,6 +39,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     supervisor \
     vim \
+    tcl \
+    tk \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
