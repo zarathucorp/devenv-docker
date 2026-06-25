@@ -17,6 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libudunits2-dev \ 
     libharfbuzz-dev \
     libfribidi-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libtiff5-dev \
+    libjpeg-dev \
+    libwebp-dev \
     libcurl4-gnutls-dev \
     libpam-google-authenticator \
     libssl-dev \
