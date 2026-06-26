@@ -90,7 +90,7 @@ otp_init() {
     require_regular_user_exists "$username"
     require_google_authenticator_available
 
-    runuser -u "$username" -- google-authenticator -t -d -f -r 3 -R 30 -w 3
+    printf '%s\n' "-1" | runuser -u "$username" -- google-authenticator -t -d -f -r 3 -R 30 -w 3
 }
 
 otp_exempt_add() {

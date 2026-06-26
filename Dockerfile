@@ -61,12 +61,14 @@ RUN /rocker_scripts/install_rstudio.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY bin/devenv-admin /usr/local/bin/devenv-admin
 COPY lib/devenv-admin /usr/local/lib/devenv-admin
+COPY scripts/devenv-smoke-test.sh /usr/local/bin/devenv-smoke-test
 COPY shiny-server.conf /etc/shiny-server/shiny-server.conf
 COPY supervisord.conf /etc/supervisord.conf
 
 RUN chmod +x \
     /usr/local/bin/entrypoint.sh \
     /usr/local/bin/devenv-admin \
+    /usr/local/bin/devenv-smoke-test \
     && mkdir -p /etc/ssh/sshd_config.d /run/sshd
 
 EXPOSE 3838 8787 22

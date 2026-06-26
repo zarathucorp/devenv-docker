@@ -77,6 +77,14 @@ docker run -itd \
 
 컨테이너 안에서 `devenv-admin`을 사용합니다.
 
+인자 없이 실행하면 번호를 선택하는 대화형 메뉴가 열립니다.
+
+```bash
+devenv-admin
+```
+
+기존처럼 명령을 직접 지정해서 실행할 수도 있습니다.
+
 ```bash
 devenv-admin user add alice --password 'change-me' --sudo no
 devenv-admin user passwd alice
@@ -159,6 +167,25 @@ Shiny 앱 디렉터리 초기화:
 
 ```bash
 devenv-admin shiny init alice
+```
+
+## Smoke test
+
+테스트 컨테이너에서 새 관리 기능을 한 번에 확인하려면 `devenv-smoke-test`를 실행합니다. 이 스크립트는 테스트 사용자 생성, sudo 토글, SSH key 추가/삭제, SSH 비밀번호 인증 토글, OTP 활성화/면제/초기화/비활성화, RStudio/Shiny 관리 명령, `doctor`, `healthcheck`를 순서대로 실행합니다.
+
+운영 컨테이너에서는 실행하지 마세요. 기본 테스트 사용자 `devenvtest`와 OTP secret 같은 상태가 남고, SSH/RStudio 설정도 테스트 과정에서 변경됩니다.
+
+```bash
+docker exec -it zarathu-devenv devenv-smoke-test
+```
+
+테스트 사용자명을 바꾸려면 환경변수를 넘깁니다.
+
+```bash
+docker exec -it \
+  -e DEVENV_TEST_USER=devenvtest2 \
+  zarathu-devenv \
+  devenv-smoke-test
 ```
 
 ## External access

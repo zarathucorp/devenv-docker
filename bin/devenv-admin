@@ -4,13 +4,20 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_LIB_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)/lib/devenv-admin"
 
+if [[ "${BASH_SOURCE[0]}" = */* ]]; then
+    DEVENV_ADMIN_SELF="${BASH_SOURCE[0]}"
+else
+    DEVENV_ADMIN_SELF="$(command -v "${BASH_SOURCE[0]}" 2>/dev/null || true)"
+    [ -n "$DEVENV_ADMIN_SELF" ] || DEVENV_ADMIN_SELF="${BASH_SOURCE[0]}"
+fi
+
 if [ -d "$LOCAL_LIB_DIR" ]; then
     LIB_DIR="$LOCAL_LIB_DIR"
 else
     LIB_DIR="/usr/local/lib/devenv-admin"
 fi
 
-for module in common shiny users ssh otp rstudio status; do
+for module in common shiny users ssh otp rstudio status interactive; do
     if [ ! -r "${LIB_DIR}/${module}.sh" ]; then
         printf '[devenv-admin] error: missing module %s\n' "${LIB_DIR}/${module}.sh" >&2
         exit 1
@@ -22,6 +29,7 @@ done
 usage() {
     cat <<'USAGE'
 Usage:
+  devenv-admin
   devenv-admin user add USER [--password PASS|--password-file FILE|--password-stdin] [--force-password] [--sudo yes|no] [--ssh-key KEY|--ssh-key-file FILE]
   devenv-admin user delete USER [--remove-home]
   devenv-admin user passwd USER [--password PASS|--password-file FILE|--password-stdin]
@@ -44,8 +52,17 @@ USAGE
 }
 
 main() {
-    local command="${1:-}"
-    shift || true
+    if [ "$#" -eq 0 ]; then
+        if [ -t 0 ] && [ -t 1 ]; then
+            interactive_menu
+            exit 0
+        fi
+        usage
+        exit 1
+    fi
+
+    local command="$1"
+    shift
 
     case "$command" in
         user)
