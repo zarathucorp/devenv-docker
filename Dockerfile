@@ -32,6 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libproj-dev \
     libsqlite3-dev \
     libxml2-dev \
+    libmagick++-dev \
+    libsodium-dev \
+    libgsl-dev \
+    libgmp-dev \
     locales \
     openssh-server \
     pandoc \

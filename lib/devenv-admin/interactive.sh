@@ -46,21 +46,21 @@ interactive_run() {
 interactive_read() {
     local __var="$1"
     local prompt="$2"
-    local value
+    local input
 
-    read -r -p "$prompt" value || return 1
-    printf -v "$__var" '%s' "$value"
+    read -r -p "$prompt" input || return 1
+    printf -v "$__var" '%s' "$input"
 }
 
 interactive_read_required() {
     local __var="$1"
     local prompt="$2"
-    local value
+    local required_input=""
 
     while true; do
-        interactive_read value "$prompt" || return 1
-        if [ -n "$value" ]; then
-            printf -v "$__var" '%s' "$value"
+        interactive_read required_input "$prompt" || return 1
+        if [ -n "$required_input" ]; then
+            printf -v "$__var" '%s' "$required_input"
             return 0
         fi
         printf 'Value is required.\n'
@@ -71,13 +71,13 @@ interactive_read_yes_no() {
     local __var="$1"
     local prompt="$2"
     local default_value="$3"
-    local value
+    local yes_no_input
 
     while true; do
-        read -r -p "${prompt} [${default_value}]: " value || return 1
-        value="${value:-$default_value}"
-        value="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-        case "$value" in
+        read -r -p "${prompt} [${default_value}]: " yes_no_input || return 1
+        yes_no_input="${yes_no_input:-$default_value}"
+        yes_no_input="$(printf '%s' "$yes_no_input" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+        case "$yes_no_input" in
             y | yes)
                 printf -v "$__var" 'yes'
                 return 0
@@ -96,12 +96,12 @@ interactive_read_yes_no() {
 interactive_read_optional_yes_no() {
     local __var="$1"
     local prompt="$2"
-    local value
+    local optional_yes_no_input
 
     while true; do
-        read -r -p "$prompt" value || return 1
-        value="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-        case "$value" in
+        read -r -p "$prompt" optional_yes_no_input || return 1
+        optional_yes_no_input="$(printf '%s' "$optional_yes_no_input" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+        case "$optional_yes_no_input" in
             "")
                 printf -v "$__var" ''
                 return 0
@@ -125,33 +125,33 @@ interactive_read_password() {
     local __var="$1"
     local prompt="$2"
     local allow_empty="$3"
-    local password
-    local confirm
+    local password_input
+    local password_confirm
 
     while true; do
-        read -r -s -p "$prompt" password || {
+        read -r -s -p "$prompt" password_input || {
             printf '\n'
             return 1
         }
         printf '\n'
 
-        if [ -z "$password" ] && [ "$allow_empty" = "yes" ]; then
+        if [ -z "$password_input" ] && [ "$allow_empty" = "yes" ]; then
             printf -v "$__var" ''
             return 0
         fi
-        if [ -z "$password" ]; then
+        if [ -z "$password_input" ]; then
             printf 'Password cannot be empty.\n'
             continue
         fi
 
-        read -r -s -p "Confirm password: " confirm || {
+        read -r -s -p "Confirm password: " password_confirm || {
             printf '\n'
             return 1
         }
         printf '\n'
 
-        if [ "$password" = "$confirm" ]; then
-            printf -v "$__var" '%s' "$password"
+        if [ "$password_input" = "$password_confirm" ]; then
+            printf -v "$__var" '%s' "$password_input"
             return 0
         fi
         printf 'Passwords do not match.\n'
