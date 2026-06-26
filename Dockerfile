@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libtiff5-dev \
     libjpeg-dev \
+    libprotobuf-dev \
     libwebp-dev \
     libcurl4-gnutls-dev \
     libpam-google-authenticator \
@@ -35,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     locales \
     openssh-server \
     pandoc \
+    protobuf-compiler \
     software-properties-common \
     sudo \
     supervisor \
