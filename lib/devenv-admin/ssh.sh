@@ -1,17 +1,38 @@
 ensure_sshd_config_include() {
+    local tmp
+
     mkdir -p "$SSHD_CONFIG_DIR"
     touch "$SSHD_CONFIG"
 
     if ! grep -Eq '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/\*\.conf' "$SSHD_CONFIG"; then
-        printf '\nInclude /etc/ssh/sshd_config.d/*.conf\n' >>"$SSHD_CONFIG"
+        tmp="$(mktemp)"
+        awk '
+          /^[[:space:]]*Match[[:space:]]/ && !inserted {
+            print "Include /etc/ssh/sshd_config.d/*.conf"
+            inserted = 1
+          }
+          { print }
+          END {
+            if (!inserted) {
+              print ""
+              print "Include /etc/ssh/sshd_config.d/*.conf"
+            }
+          }
+        ' "$SSHD_CONFIG" >"$tmp"
+        cat "$tmp" >"$SSHD_CONFIG"
+        rm -f "$tmp"
     fi
 }
 
 comment_base_sshd_setting() {
     local key="$1"
+    local tmp
 
     if [ -f "$SSHD_CONFIG" ]; then
-        sed -i -E "s/^([[:space:]]*)#?[[:space:]]*(${key})[[:space:]].*$/# \2 managed by devenv-admin/" "$SSHD_CONFIG"
+        tmp="$(mktemp)"
+        sed -E "s/^([[:space:]]*)#?[[:space:]]*(${key})[[:space:]].*$/# \2 managed by devenv-admin/" "$SSHD_CONFIG" >"$tmp"
+        cat "$tmp" >"$SSHD_CONFIG"
+        rm -f "$tmp"
     fi
 }
 
@@ -20,6 +41,9 @@ set_ssh_password_auth() {
     local restart="${2:-yes}"
     local password_auth="no"
     local keyboard_auth="no"
+    local sshd_config_backup=""
+    local devenv_config_backup=""
+    local devenv_config_existed="no"
 
     require_root
     state="$(normalize_on_off "$state")"
@@ -27,6 +51,17 @@ set_ssh_password_auth() {
     if [ "$state" = "on" ]; then
         password_auth="yes"
         keyboard_auth="yes"
+    fi
+
+    if [ -f "$SSHD_CONFIG" ]; then
+        sshd_config_backup="$(mktemp)"
+        cp -p "$SSHD_CONFIG" "$sshd_config_backup"
+    fi
+
+    if [ -f "$SSHD_DEVENV_CONFIG" ]; then
+        devenv_config_existed="yes"
+        devenv_config_backup="$(mktemp)"
+        cp -p "$SSHD_DEVENV_CONFIG" "$devenv_config_backup"
     fi
 
     ensure_sshd_config_include
@@ -47,11 +82,25 @@ EOF
 
     if command -v sshd >/dev/null 2>&1; then
         mkdir -p /run/sshd
-        sshd -t
+        if ! sshd -t; then
+            if [ -n "$sshd_config_backup" ]; then
+                cat "$sshd_config_backup" >"$SSHD_CONFIG"
+            fi
+            if [ "$devenv_config_existed" = "yes" ]; then
+                cat "$devenv_config_backup" >"$SSHD_DEVENV_CONFIG"
+            else
+                rm -f "$SSHD_DEVENV_CONFIG"
+            fi
+            rm -f "$sshd_config_backup" "$devenv_config_backup"
+            die "generated SSH configuration failed validation"
+        fi
     fi
+    rm -f "$sshd_config_backup" "$devenv_config_backup"
 
     log "ssh password authentication ${state}"
-    [ "$restart" = "yes" ] && restart_service_if_running "sshd"
+    if [ "$restart" = "yes" ]; then
+        restart_service_if_running "sshd"
+    fi
 }
 
 ssh_password_auth_status() {

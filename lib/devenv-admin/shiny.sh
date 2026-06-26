@@ -3,7 +3,7 @@ ensure_shiny_dir() {
     local group
     local home_dir
 
-    require_user_exists "$username"
+    require_regular_user_exists "$username"
     group="$(primary_group "$username")"
     home_dir="$(getent passwd "$username" | cut -d: -f6)"
 
@@ -26,7 +26,7 @@ shiny_list() {
     local username="$1"
     local home_dir
 
-    require_user_exists "$username"
+    require_regular_user_exists "$username"
     home_dir="$(getent passwd "$username" | cut -d: -f6)"
     if [ -d "${home_dir}/ShinyApps" ]; then
         find "${home_dir}/ShinyApps" -maxdepth 1 -mindepth 1 -print

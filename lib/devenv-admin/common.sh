@@ -48,6 +48,17 @@ require_user_exists() {
     fi
 }
 
+require_regular_user_exists() {
+    local username="$1"
+    local uid
+
+    require_user_exists "$username"
+    uid="$(id -u "$username")"
+    if [ "$uid" -lt 1000 ]; then
+        die "refusing to manage system user '${username}' with uid ${uid}"
+    fi
+}
+
 primary_group() {
     id -gn "$1"
 }
@@ -62,7 +73,10 @@ read_first_line() {
 }
 
 normalize_on_off() {
-    case "${1:-}" in
+    local value
+
+    value="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    case "$value" in
         on | true | yes | y | 1 | enable | enabled)
             printf 'on'
             ;;
@@ -76,7 +90,10 @@ normalize_on_off() {
 }
 
 normalize_yes_no() {
-    case "${1:-}" in
+    local value
+
+    value="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    case "$value" in
         yes | y | true | 1 | on)
             printf 'yes'
             ;;

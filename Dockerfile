@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     gnupg \
     libcairo2-dev \
-    libuv1-dev \ 
-    libudunits2-dev \ 
+    libuv1-dev \
+    libudunits2-dev \
     libharfbuzz-dev \
     libfribidi-dev \
     libfreetype6-dev \
@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpam-google-authenticator \
     libssl-dev \
     libxt-dev \
-    libudunits2-dev \
     libgdal-dev \
     libgeos-dev \
     libproj-dev \

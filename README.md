@@ -28,6 +28,8 @@ docker volume create zarathu-home
 
 Linux 계정 자체와 그룹 membership은 `/home`에 저장되지 않습니다. 컨테이너를 새로 만든 뒤에는 `devenv-admin`으로 같은 계정을 다시 생성해야 합니다.
 
+이 이미지는 컨테이너 시작 시 SSH, PAM, Linux 계정, supervisor 설정을 초기화하므로 root로 시작해야 합니다. Kubernetes나 hardened runtime에서 `runAsNonRoot`를 강제하는 구성은 현재 지원하지 않습니다.
+
 ## Run without a bootstrap user
 
 ```bash

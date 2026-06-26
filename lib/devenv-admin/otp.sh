@@ -7,6 +7,14 @@ ensure_otp_exempt_group() {
     fi
 }
 
+require_google_authenticator_available() {
+    local module_path
+
+    command -v google-authenticator >/dev/null 2>&1 || die "google-authenticator is not installed"
+    module_path="$(find /lib /usr/lib -name pam_google_authenticator.so -print -quit 2>/dev/null || true)"
+    [ -n "$module_path" ] || die "pam_google_authenticator.so is not installed"
+}
+
 write_rstudio_pam_base() {
     mkdir -p "$(dirname "$PAM_FILE")"
     cat >"$PAM_FILE" <<'EOF'
@@ -34,12 +42,16 @@ EOF
 set_rserver_conf_value() {
     local key="$1"
     local value="$2"
+    local tmp
 
     mkdir -p "$(dirname "$RSERVER_CONF")"
     touch "$RSERVER_CONF"
 
     if grep -Eq "^${key}=" "$RSERVER_CONF"; then
-        sed -i -E "s|^${key}=.*$|${key}=${value}|" "$RSERVER_CONF"
+        tmp="$(mktemp)"
+        sed -E "s|^${key}=.*$|${key}=${value}|" "$RSERVER_CONF" >"$tmp"
+        cat "$tmp" >"$RSERVER_CONF"
+        rm -f "$tmp"
     else
         printf '%s=%s\n' "$key" "$value" >>"$RSERVER_CONF"
     fi
@@ -47,6 +59,7 @@ set_rserver_conf_value() {
 
 otp_enable() {
     require_root
+    require_google_authenticator_available
     ensure_otp_exempt_group
     write_rstudio_pam_otp
     set_rserver_conf_value "auth-pam-require-password-prompt" "0"
@@ -57,6 +70,7 @@ otp_enable() {
 otp_disable() {
     require_root
     write_rstudio_pam_base
+    set_rserver_conf_value "auth-pam-require-password-prompt" "1"
     log "RStudio OTP PAM module disabled"
     restart_service_if_running "rstudio-server"
 }
@@ -73,8 +87,8 @@ otp_init() {
     local username="$1"
 
     require_root
-    require_user_exists "$username"
-    command -v google-authenticator >/dev/null 2>&1 || die "google-authenticator is not installed"
+    require_regular_user_exists "$username"
+    require_google_authenticator_available
 
     runuser -u "$username" -- google-authenticator -t -d -f -r 3 -R 30 -w 3
 }
@@ -83,7 +97,7 @@ otp_exempt_add() {
     local username="$1"
 
     require_root
-    require_user_exists "$username"
+    require_regular_user_exists "$username"
     ensure_otp_exempt_group
     usermod -aG "$OTP_EXEMPT_GROUP" "$username"
     log "user ${username} added to ${OTP_EXEMPT_GROUP}"
@@ -93,7 +107,7 @@ otp_exempt_remove() {
     local username="$1"
 
     require_root
-    require_user_exists "$username"
+    require_regular_user_exists "$username"
     if getent group "$OTP_EXEMPT_GROUP" >/dev/null 2>&1; then
         gpasswd -d "$username" "$OTP_EXEMPT_GROUP" >/dev/null 2>&1 || true
     fi

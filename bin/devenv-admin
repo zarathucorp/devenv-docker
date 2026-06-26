@@ -3,17 +3,18 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_LIB_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)/lib/devenv-admin"
-LIB_DIR="${DEVENV_ADMIN_LIB_DIR:-}"
 
-if [ -z "$LIB_DIR" ]; then
-    if [ -d "$LOCAL_LIB_DIR" ]; then
-        LIB_DIR="$LOCAL_LIB_DIR"
-    else
-        LIB_DIR="/usr/local/lib/devenv-admin"
-    fi
+if [ -d "$LOCAL_LIB_DIR" ]; then
+    LIB_DIR="$LOCAL_LIB_DIR"
+else
+    LIB_DIR="/usr/local/lib/devenv-admin"
 fi
 
 for module in common shiny users ssh otp rstudio status; do
+    if [ ! -r "${LIB_DIR}/${module}.sh" ]; then
+        printf '[devenv-admin] error: missing module %s\n' "${LIB_DIR}/${module}.sh" >&2
+        exit 1
+    fi
     # shellcheck source=/dev/null
     source "${LIB_DIR}/${module}.sh"
 done

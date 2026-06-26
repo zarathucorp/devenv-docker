@@ -27,9 +27,13 @@ doctor() {
     [ -d /etc/rstudio ] || { warn "missing /etc/rstudio"; failed=1; }
 
     if command -v sshd >/dev/null 2>&1; then
-        mkdir -p /run/sshd
-        ssh-keygen -A >/dev/null 2>&1 || true
-        sshd -t || failed=1
+        if mkdir -p /run/sshd 2>/dev/null; then
+            ssh-keygen -A >/dev/null 2>&1 || true
+            sshd -t || failed=1
+        else
+            warn "cannot create /run/sshd; run doctor as root for SSH config validation"
+            failed=1
+        fi
     fi
 
     status
@@ -51,5 +55,5 @@ healthcheck() {
         exit failed
       }
     '
-    curl -fsS http://127.0.0.1:3838/ >/dev/null
+    curl -sS --max-time 5 http://127.0.0.1:3838/ >/dev/null
 }

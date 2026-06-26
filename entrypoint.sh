@@ -18,7 +18,10 @@ read_first_line() {
 }
 
 normalize_on_off() {
-    case "${1:-}" in
+    local value
+
+    value="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    case "$value" in
         on | true | yes | y | 1 | enable | enabled)
             printf 'on'
             ;;
@@ -32,6 +35,21 @@ normalize_on_off() {
     esac
 }
 
+if [ "$(id -u)" -ne 0 ]; then
+    log "container must start as root"
+    exit 1
+fi
+
+if [ ! -x /usr/bin/supervisord ]; then
+    log "missing executable: /usr/bin/supervisord"
+    exit 1
+fi
+
+if [ ! -r /etc/supervisord.conf ]; then
+    log "missing readable supervisor config: /etc/supervisord.conf"
+    exit 1
+fi
+
 mkdir -p /run/sshd
 ssh-keygen -A
 
@@ -44,16 +62,27 @@ if [ "$otp_state" = "on" ]; then
 fi
 
 if [ -n "${DEVENV_BOOTSTRAP_USER:-}" ]; then
-    bootstrap_args=(user add "$DEVENV_BOOTSTRAP_USER" --sudo "${DEVENV_BOOTSTRAP_SUDO:-no}")
+    bootstrap_args=(user add "$DEVENV_BOOTSTRAP_USER")
+    if [ -n "${DEVENV_BOOTSTRAP_SUDO:-}" ]; then
+        bootstrap_args+=(--sudo "$DEVENV_BOOTSTRAP_SUDO")
+    fi
 
+    bootstrap_password_set="no"
     if [ -n "${DEVENV_BOOTSTRAP_PASSWORD_FILE:-}" ]; then
         bootstrap_password="$(read_first_line "$DEVENV_BOOTSTRAP_PASSWORD_FILE")"
+        bootstrap_password_set="yes"
         bootstrap_args+=(--password-stdin)
     elif [ -n "${DEVENV_BOOTSTRAP_PASSWORD:-}" ]; then
         bootstrap_password="$DEVENV_BOOTSTRAP_PASSWORD"
+        bootstrap_password_set="yes"
         bootstrap_args+=(--password-stdin)
     else
         bootstrap_password=""
+    fi
+
+    if [ "$bootstrap_password_set" = "yes" ] && [ -z "$bootstrap_password" ]; then
+        log "bootstrap password is empty"
+        exit 1
     fi
 
     force_password_state="$(normalize_on_off "${DEVENV_BOOTSTRAP_FORCE_PASSWORD:-false}")"
@@ -70,7 +99,7 @@ if [ -n "${DEVENV_BOOTSTRAP_USER:-}" ]; then
     fi
 
     log "bootstrapping user ${DEVENV_BOOTSTRAP_USER}"
-    if [ -n "$bootstrap_password" ]; then
+    if [ "$bootstrap_password_set" = "yes" ]; then
         printf '%s' "$bootstrap_password" | devenv-admin "${bootstrap_args[@]}"
     else
         devenv-admin "${bootstrap_args[@]}"
