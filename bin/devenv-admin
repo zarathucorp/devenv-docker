@@ -17,7 +17,7 @@ else
     LIB_DIR="/usr/local/lib/devenv-admin"
 fi
 
-for module in common shiny users ssh otp rstudio status interactive; do
+for module in common shiny users ssh otp rstudio service logs config status interactive; do
     if [ ! -r "${LIB_DIR}/${module}.sh" ]; then
         printf '[devenv-admin] error: missing module %s\n' "${LIB_DIR}/${module}.sh" >&2
         exit 1
@@ -37,6 +37,9 @@ Usage:
   devenv-admin user key add USER (--ssh-key KEY|--ssh-key-file FILE|KEY)
   devenv-admin user key remove USER (--ssh-key KEY|--ssh-key-file FILE|KEY)
   devenv-admin user key list USER
+  devenv-admin user inspect USER
+  devenv-admin user export [--output FILE]
+  devenv-admin user import --file FILE [--restore-keys yes|no] [--replace-keys yes|no] [--restore-groups yes|no] [--create-home yes|no]
   devenv-admin rstudio reset USER
   devenv-admin shiny init USER
   devenv-admin shiny list USER
@@ -45,6 +48,10 @@ Usage:
   devenv-admin otp init USER
   devenv-admin otp exempt add|remove USER
   devenv-admin otp exempt list
+  devenv-admin service status [SERVICE|all]
+  devenv-admin service start|stop|restart SERVICE|all
+  devenv-admin logs services|rstudio|shiny|ssh|auth [--lines N]
+  devenv-admin config backup [--output FILE]
   devenv-admin status
   devenv-admin doctor
   devenv-admin healthcheck
@@ -88,6 +95,16 @@ main() {
                 key)
                     [ "$#" -ge 2 ] || die "usage: devenv-admin user key add|remove|list USER ..."
                     user_key "$@"
+                    ;;
+                inspect)
+                    [ "$#" -eq 1 ] || die "usage: devenv-admin user inspect USER"
+                    user_inspect "$1"
+                    ;;
+                export)
+                    user_export "$@"
+                    ;;
+                import)
+                    user_import "$@"
                     ;;
                 *)
                     usage
@@ -166,6 +183,15 @@ main() {
                     die "usage: devenv-admin otp enable|disable|init USER|status|exempt"
                     ;;
             esac
+            ;;
+        service)
+            service_command "$@"
+            ;;
+        logs)
+            logs_command "$@"
+            ;;
+        config)
+            config_command "$@"
             ;;
         status)
             [ "$#" -eq 0 ] || die "usage: devenv-admin status"

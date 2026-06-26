@@ -43,16 +43,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tcl \
     tk \
     wget \
+    tzdata \
+    && ln -snf /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+    && echo Asia/Seoul > /etc/timezone \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 RUN locale-gen en_US.UTF-8
 ENV LANG=en_US.UTF-8 \
-    LC_ALL=en_US.UTF-8
+    LC_ALL=en_US.UTF-8 \
+    TZ=Asia/Seoul
 
 COPY zarathu/dependencies /tmp/zarathu-dependencies
 
 RUN Rscript "/tmp/zarathu-dependencies/CRAN.R" \
     && Rscript "/tmp/zarathu-dependencies/REMOTE.R" \
+    && Rscript "/tmp/zarathu-dependencies/Bioconductor.R" \
     && R -e "shinytest::installDependencies()" \
     && rm -rf /tmp/zarathu-dependencies
 

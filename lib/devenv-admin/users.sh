@@ -7,6 +7,66 @@ set_user_password() {
     passwd -u "$username" >/dev/null 2>&1 || true
 }
 
+user_in_group() {
+    local username="$1"
+    local group="$2"
+
+    getent group "$group" >/dev/null 2>&1 || return 1
+    id -nG "$username" 2>/dev/null | tr ' ' '\n' | grep -Fxq "$group"
+}
+
+base64_one_line() {
+    if base64 --help 2>&1 | grep -q -- '-w'; then
+        base64 -w0
+    else
+        base64 | tr -d '\n'
+    fi
+}
+
+base64_decode() {
+    if base64 --help 2>&1 | grep -q -- '-d'; then
+        base64 -d
+    else
+        base64 -D
+    fi
+}
+
+is_managed_user_record() {
+    local username="$1"
+    local uid="$2"
+    local home_dir="$3"
+
+    [ "$uid" -ge 1000 ] || return 1
+    [ "$uid" -lt 60000 ] || return 1
+    [ "$username" != "nobody" ] || return 1
+    [[ "$home_dir" = /home/* ]] || return 1
+}
+
+encode_authorized_keys() {
+    local file="$1"
+    local key
+    local encoded
+    local output=""
+    local separator=""
+
+    [ -f "$file" ] || return 0
+
+    while IFS= read -r key || [ -n "$key" ]; do
+        [ -n "$key" ] || continue
+        encoded="$(printf '%s' "$key" | base64_one_line)"
+        output="${output}${separator}${encoded}"
+        separator=","
+    done <"$file"
+
+    printf '%s' "$output"
+}
+
+decode_authorized_key() {
+    local encoded="$1"
+
+    printf '%s' "$encoded" | base64_decode
+}
+
 set_user_sudo() {
     local username="$1"
     local state="$2"
@@ -289,4 +349,357 @@ user_key() {
             die "unknown user key action '${action}'"
             ;;
     esac
+}
+
+user_export() {
+    local output="-"
+    local destination
+    local tmp=""
+    local username
+    local _password
+    local uid
+    local gid
+    local gecos
+    local home_dir
+    local shell
+    local sudo_state
+    local otp_state
+    local keys
+    local key_file
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --output)
+                [ "$#" -ge 2 ] || die "--output requires a file"
+                output="$2"
+                shift 2
+                ;;
+            *)
+                die "unknown user export option '${1}'"
+                ;;
+        esac
+    done
+
+    if [ "$output" = "-" ]; then
+        destination="/dev/stdout"
+    else
+        mkdir -p "$(dirname "$output")"
+        tmp="$(mktemp)"
+        destination="$tmp"
+    fi
+
+    {
+        printf '# devenv-admin user manifest v1\n'
+        printf 'username\tuid\tgid\tshell\thome\tsudo\totp_exempt\tssh_keys_b64\n'
+
+        while IFS=: read -r username _password uid gid gecos home_dir shell; do
+            if ! is_managed_user_record "$username" "$uid" "$home_dir"; then
+                continue
+            fi
+
+            sudo_state="no"
+            user_in_group "$username" sudo && sudo_state="yes"
+
+            otp_state="no"
+            user_in_group "$username" "$OTP_EXEMPT_GROUP" && otp_state="yes"
+
+            key_file="${home_dir}/.ssh/authorized_keys"
+            keys="$(encode_authorized_keys "$key_file")"
+
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$username" "$uid" "$gid" "$shell" "$home_dir" "$sudo_state" "$otp_state" "$keys"
+        done < <(getent passwd)
+    } >"$destination"
+
+    if [ "$output" != "-" ]; then
+        mv "$tmp" "$output"
+        log "user manifest exported to ${output}"
+    fi
+}
+
+ensure_import_group() {
+    local username="$1"
+    local gid="$2"
+    local group_name
+    local existing_group
+
+    existing_group="$(getent group | awk -F: -v gid="$gid" '$3 == gid { print $1; exit }')"
+    if [ -n "$existing_group" ]; then
+        printf '%s' "$existing_group"
+        return 0
+    fi
+
+    if getent group "$username" >/dev/null 2>&1; then
+        group_name="devenv-g${gid}"
+    else
+        group_name="$username"
+    fi
+
+    if getent group "$group_name" >/dev/null 2>&1; then
+        die "group '${group_name}' already exists with a different gid"
+    fi
+
+    groupadd -g "$gid" "$group_name"
+    log "group ${group_name} created with gid ${gid}"
+    printf '%s' "$group_name"
+}
+
+validate_numeric_id() {
+    local value="$1"
+    local label="$2"
+
+    [[ "$value" =~ ^[0-9]+$ ]] || die "invalid ${label}: '${value}'"
+}
+
+import_user_row() {
+    local username="$1"
+    local uid="$2"
+    local gid="$3"
+    local shell="$4"
+    local home_dir="$5"
+    local sudo_state="$6"
+    local otp_state="$7"
+    local keys_b64="$8"
+    local restore_keys="$9"
+    local replace_keys="${10}"
+    local restore_groups="${11}"
+    local create_home="${12}"
+    local group_name
+    local existing_uid_user
+    local current_uid
+    local current_gid
+    local key_file
+    local encoded_key
+    local -a encoded_keys=()
+    local key
+    local useradd_home_flag="-m"
+
+    validate_username "$username"
+    validate_numeric_id "$uid" "uid"
+    validate_numeric_id "$gid" "gid"
+    [[ "$shell" = /* ]] || die "invalid shell for ${username}: '${shell}'"
+    [[ "$home_dir" = /home/* ]] || die "invalid home for ${username}: '${home_dir}'"
+    sudo_state="$(normalize_yes_no "$sudo_state")"
+    otp_state="$(normalize_yes_no "$otp_state")"
+
+    existing_uid_user="$(getent passwd | awk -F: -v uid="$uid" '$3 == uid { print $1; exit }')"
+    if [ -n "$existing_uid_user" ] && [ "$existing_uid_user" != "$username" ]; then
+        die "uid ${uid} is already used by ${existing_uid_user}; refusing to import ${username}"
+    fi
+
+    group_name="$(ensure_import_group "$username" "$gid")"
+
+    if id "$username" >/dev/null 2>&1; then
+        current_uid="$(id -u "$username")"
+        current_gid="$(id -g "$username")"
+        if [ "$current_uid" != "$uid" ] || [ "$current_gid" != "$gid" ]; then
+            die "user ${username} already exists with uid:gid ${current_uid}:${current_gid}, manifest has ${uid}:${gid}"
+        fi
+        log "user ${username} already exists"
+    else
+        [ "$create_home" = "yes" ] || useradd_home_flag="-M"
+        useradd "$useradd_home_flag" -u "$uid" -g "$group_name" -d "$home_dir" -s "$shell" "$username"
+        log "user ${username} created with uid:gid ${uid}:${gid}"
+    fi
+
+    ensure_shiny_dir "$username"
+
+    if [ "$restore_groups" = "yes" ]; then
+        set_user_sudo "$username" "$sudo_state"
+        if [ "$otp_state" = "yes" ]; then
+            otp_exempt_add "$username"
+        else
+            otp_exempt_remove "$username"
+        fi
+    fi
+
+    if [ "$restore_keys" = "yes" ]; then
+        key_file="$(authorized_keys_file "$username")"
+        if [ "$replace_keys" = "yes" ]; then
+            : >"$key_file"
+        fi
+
+        if [ -n "$keys_b64" ]; then
+            IFS=',' read -r -a encoded_keys <<<"$keys_b64"
+            for encoded_key in "${encoded_keys[@]}"; do
+                [ -n "$encoded_key" ] || continue
+                key="$(decode_authorized_key "$encoded_key")"
+                add_ssh_key "$username" "$key"
+            done
+        fi
+    fi
+}
+
+user_import() {
+    local file=""
+    local restore_keys="yes"
+    local replace_keys="no"
+    local restore_groups="yes"
+    local create_home="yes"
+    local line_number=0
+    local username
+    local uid
+    local gid
+    local shell
+    local home_dir
+    local sudo_state
+    local otp_state
+    local keys_b64
+
+    require_root
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --file)
+                [ "$#" -ge 2 ] || die "--file requires a path"
+                file="$2"
+                shift 2
+                ;;
+            --restore-keys)
+                [ "$#" -ge 2 ] || die "--restore-keys requires yes or no"
+                restore_keys="$(normalize_yes_no "$2")"
+                shift 2
+                ;;
+            --replace-keys)
+                [ "$#" -ge 2 ] || die "--replace-keys requires yes or no"
+                replace_keys="$(normalize_yes_no "$2")"
+                shift 2
+                ;;
+            --restore-groups)
+                [ "$#" -ge 2 ] || die "--restore-groups requires yes or no"
+                restore_groups="$(normalize_yes_no "$2")"
+                shift 2
+                ;;
+            --create-home)
+                [ "$#" -ge 2 ] || die "--create-home requires yes or no"
+                create_home="$(normalize_yes_no "$2")"
+                shift 2
+                ;;
+            *)
+                die "unknown user import option '${1}'"
+                ;;
+        esac
+    done
+
+    [ -n "$file" ] || die "usage: devenv-admin user import --file FILE"
+    [ -r "$file" ] || die "cannot read user manifest '${file}'"
+
+    while IFS=$'\t' read -r username uid gid shell home_dir sudo_state otp_state keys_b64 || [ -n "${username:-}" ]; do
+        line_number=$((line_number + 1))
+        case "${username:-}" in
+            "" | \#*)
+                continue
+                ;;
+            username)
+                continue
+                ;;
+        esac
+
+        if [ -z "${uid:-}" ] || [ -z "${gid:-}" ] || [ -z "${shell:-}" ] || [ -z "${home_dir:-}" ] || [ -z "${sudo_state:-}" ] || [ -z "${otp_state:-}" ]; then
+            die "invalid manifest row at line ${line_number}"
+        fi
+
+        import_user_row "$username" "$uid" "$gid" "$shell" "$home_dir" "$sudo_state" "$otp_state" "${keys_b64:-}" "$restore_keys" "$replace_keys" "$restore_groups" "$create_home"
+    done <"$file"
+}
+
+count_user_processes() {
+    local username="$1"
+
+    if command -v pgrep >/dev/null 2>&1; then
+        pgrep -u "$username" 2>/dev/null | wc -l | awk '{ print $1 }'
+    else
+        ps -u "$username" -o pid= 2>/dev/null | wc -l | awk '{ print $1 }'
+    fi
+}
+
+count_shiny_apps() {
+    local username="$1"
+    local home_dir
+    local app_dir
+
+    home_dir="$(getent passwd "$username" | cut -d: -f6)"
+    app_dir="${home_dir}/ShinyApps"
+
+    if [ -d "$app_dir" ]; then
+        find "$app_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | awk '{ print $1 }'
+    else
+        printf '0\n'
+    fi
+}
+
+count_ssh_keys() {
+    local username="$1"
+    local file
+
+    file="$(authorized_keys_path "$username")"
+    if [ -f "$file" ]; then
+        grep -cv '^[[:space:]]*$' "$file" || true
+    else
+        printf '0\n'
+    fi
+}
+
+last_login_summary() {
+    local username="$1"
+
+    if command -v lastlog >/dev/null 2>&1; then
+        lastlog -u "$username" 2>/dev/null | tail -n +2 | sed -E 's/[[:space:]]+/ /g; s/^ //'
+    elif command -v last >/dev/null 2>&1; then
+        last -n 1 "$username" 2>/dev/null | head -n 1 | sed -E 's/[[:space:]]+/ /g; s/^ //'
+    else
+        printf 'unavailable\n'
+    fi
+}
+
+user_inspect() {
+    local username="$1"
+    local uid
+    local gid
+    local group_name
+    local home_dir
+    local shell
+    local sudo_state="no"
+    local otp_state="no"
+    local otp_secret="missing"
+    local shiny_dir="missing"
+    local ssh_keys
+    local shiny_apps
+    local process_count
+    local last_login
+
+    require_regular_user_exists "$username"
+
+    uid="$(id -u "$username")"
+    gid="$(id -g "$username")"
+    group_name="$(id -gn "$username")"
+    home_dir="$(getent passwd "$username" | cut -d: -f6)"
+    shell="$(getent passwd "$username" | cut -d: -f7)"
+
+    user_in_group "$username" sudo && sudo_state="yes"
+    user_in_group "$username" "$OTP_EXEMPT_GROUP" && otp_state="yes"
+    [ -f "${home_dir}/.google_authenticator" ] && otp_secret="present"
+    [ -d "${home_dir}/ShinyApps" ] && shiny_dir="present"
+
+    ssh_keys="$(count_ssh_keys "$username")"
+    shiny_apps="$(count_shiny_apps "$username")"
+    process_count="$(count_user_processes "$username")"
+    last_login="$(last_login_summary "$username")"
+
+    cat <<EOF
+username: ${username}
+uid: ${uid}
+gid: ${gid}
+primary_group: ${group_name}
+home: ${home_dir}
+shell: ${shell}
+sudo: ${sudo_state}
+otp_exempt: ${otp_state}
+otp_secret: ${otp_secret}
+ssh_keys: ${ssh_keys}
+shiny_apps_dir: ${shiny_dir}
+shiny_apps: ${shiny_apps}
+processes: ${process_count}
+last_login: ${last_login}
+EOF
 }

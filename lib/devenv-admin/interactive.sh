@@ -256,6 +256,48 @@ interactive_user_key() {
     esac
 }
 
+interactive_user_inspect() {
+    local username
+
+    interactive_read_required username "Username: " || return
+    interactive_run user inspect "$username"
+}
+
+interactive_user_export() {
+    local output
+
+    interactive_read output "Output file [/home/.devenv/users.tsv]: " || return
+    output="${output:-/home/.devenv/users.tsv}"
+    interactive_run user export --output "$output"
+}
+
+interactive_user_import() {
+    local file
+    local restore_keys
+    local replace_keys
+    local restore_groups
+    local create_home
+    local -a args
+
+    interactive_read file "Manifest file [/home/.devenv/users.tsv]: " || return
+    file="${file:-/home/.devenv/users.tsv}"
+    args=(user import --file "$file")
+
+    interactive_read_yes_no restore_keys "Restore SSH keys?" yes || return
+    args+=(--restore-keys "$restore_keys")
+
+    interactive_read_yes_no replace_keys "Replace existing authorized_keys?" no || return
+    args+=(--replace-keys "$replace_keys")
+
+    interactive_read_yes_no restore_groups "Restore sudo and otp_exempt membership?" yes || return
+    args+=(--restore-groups "$restore_groups")
+
+    interactive_read_yes_no create_home "Create missing home directories?" yes || return
+    args+=(--create-home "$create_home")
+
+    interactive_run "${args[@]}"
+}
+
 interactive_user_menu() {
     local choice
 
@@ -270,6 +312,9 @@ User management
   5) Add SSH key
   6) Remove SSH key
   7) List SSH keys
+  8) Inspect user
+  9) Export user manifest
+  10) Import user manifest
   0) Back
 MENU
         read -r -p "Select: " choice || return 0
@@ -281,8 +326,130 @@ MENU
             5) interactive_user_key add ;;
             6) interactive_user_key remove ;;
             7) interactive_user_key list ;;
+            8) interactive_user_inspect ;;
+            9) interactive_user_export ;;
+            10) interactive_user_import ;;
             0) return 0 ;;
             *) printf 'Unknown selection.\n' ;;
+        esac
+    done
+}
+
+interactive_service_menu() {
+    local choice
+    local service
+
+    while true; do
+        cat <<'MENU'
+
+Service management
+  1) Show all status
+  2) Show one service status
+  3) Restart one service
+  4) Restart all services
+  5) Start one service
+  6) Stop one service
+  0) Back
+MENU
+        read -r -p "Select: " choice || return 0
+        case "$choice" in
+            1)
+                interactive_run service status all
+                ;;
+            2)
+                interactive_read_required service "Service (rstudio-server/shiny-server/sshd): " || return
+                interactive_run service status "$service"
+                ;;
+            3)
+                interactive_read_required service "Service (rstudio-server/shiny-server/sshd): " || return
+                interactive_run service restart "$service"
+                ;;
+            4)
+                interactive_run service restart all
+                ;;
+            5)
+                interactive_read_required service "Service (rstudio-server/shiny-server/sshd): " || return
+                interactive_run service start "$service"
+                ;;
+            6)
+                interactive_read_required service "Service (rstudio-server/shiny-server/sshd): " || return
+                interactive_run service stop "$service"
+                ;;
+            0)
+                return 0
+                ;;
+            *)
+                printf 'Unknown selection.\n'
+                ;;
+        esac
+    done
+}
+
+interactive_logs_menu() {
+    local choice
+    local lines
+
+    while true; do
+        cat <<'MENU'
+
+Logs
+  1) Services
+  2) RStudio
+  3) Shiny
+  4) SSH
+  5) Auth
+  0) Back
+MENU
+        read -r -p "Select: " choice || return 0
+        case "$choice" in
+            1 | 2 | 3 | 4 | 5)
+                interactive_read lines "Lines [120]: " || return
+                lines="${lines:-120}"
+                case "$choice" in
+                    1) interactive_run logs services --lines "$lines" ;;
+                    2) interactive_run logs rstudio --lines "$lines" ;;
+                    3) interactive_run logs shiny --lines "$lines" ;;
+                    4) interactive_run logs ssh --lines "$lines" ;;
+                    5) interactive_run logs auth --lines "$lines" ;;
+                esac
+                ;;
+            0)
+                return 0
+                ;;
+            *)
+                printf 'Unknown selection.\n'
+                ;;
+        esac
+    done
+}
+
+interactive_config_menu() {
+    local choice
+    local output
+
+    while true; do
+        cat <<'MENU'
+
+Config
+  1) Backup managed config files
+  0) Back
+MENU
+        read -r -p "Select: " choice || return 0
+        case "$choice" in
+            1)
+                interactive_read output "Output file [auto under /home/.devenv]: " || return
+                if [ -n "$output" ]; then
+                    interactive_run config backup --output "$output"
+                else
+                    interactive_run config backup
+                fi
+                ;;
+            0)
+                return 0
+                ;;
+            *)
+                printf 'Unknown selection.\n'
+                ;;
         esac
     done
 }
@@ -455,7 +622,10 @@ Main menu
   6) RStudio OTP
   7) RStudio
   8) Shiny
-  9) Help
+  9) Services
+  10) Logs
+  11) Config
+  12) Help
   0) Exit
 MENU
         read -r -p "Select: " choice || {
@@ -471,7 +641,10 @@ MENU
             6) interactive_otp_menu ;;
             7) interactive_rstudio_menu ;;
             8) interactive_shiny_menu ;;
-            9) usage; interactive_pause ;;
+            9) interactive_service_menu ;;
+            10) interactive_logs_menu ;;
+            11) interactive_config_menu ;;
+            12) usage; interactive_pause ;;
             0) return 0 ;;
             *) printf 'Unknown selection.\n' ;;
         esac

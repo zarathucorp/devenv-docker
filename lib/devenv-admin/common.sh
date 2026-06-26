@@ -5,6 +5,7 @@ PAM_FILE="${PAM_FILE:-/etc/pam.d/rstudio}"
 RSERVER_CONF="${RSERVER_CONF:-/etc/rstudio/rserver.conf}"
 OTP_PAM_LINE="${OTP_PAM_LINE:-auth sufficient pam_google_authenticator.so}"
 OTP_EXEMPT_GROUP="${OTP_EXEMPT_GROUP:-otp_exempt}"
+SUPERVISOR_SOCKET="${SUPERVISOR_SOCKET:-/var/run/supervisor.sock}"
 
 log() {
     printf '[devenv-admin] %s\n' "$*" >&2

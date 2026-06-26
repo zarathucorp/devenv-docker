@@ -28,6 +28,18 @@ docker volume create zarathu-home
 
 Linux 계정 자체와 그룹 membership은 `/home`에 저장되지 않습니다. 컨테이너를 새로 만든 뒤에는 `devenv-admin`으로 같은 계정을 다시 생성해야 합니다.
 
+컨테이너를 교체하기 전에는 계정 manifest를 `/home` volume에 export해 두는 것을 권장합니다. 이 manifest에는 UID/GID, shell, home, sudo 여부, `otp_exempt` 여부, SSH public key가 저장됩니다. 비밀번호와 OTP secret은 저장하지 않습니다.
+
+```bash
+devenv-admin user export --output /home/.devenv/users.tsv
+```
+
+새 컨테이너를 같은 `/home` volume으로 띄운 뒤 manifest를 import하면 기존 파일 ownership과 맞는 UID/GID로 계정을 다시 만들 수 있습니다.
+
+```bash
+devenv-admin user import --file /home/.devenv/users.tsv
+```
+
 이 이미지는 컨테이너 시작 시 SSH, PAM, Linux 계정, supervisor 설정을 초기화하므로 root로 시작해야 합니다. Kubernetes나 hardened runtime에서 `runAsNonRoot`를 강제하는 구성은 현재 지원하지 않습니다.
 
 ## Run without a bootstrap user
@@ -91,6 +103,9 @@ devenv-admin user passwd alice
 devenv-admin user sudo alice on
 devenv-admin user key add alice --ssh-key 'ssh-ed25519 AAAA... alice@example'
 devenv-admin user key list alice
+devenv-admin user inspect alice
+devenv-admin user export --output /home/.devenv/users.tsv
+devenv-admin user import --file /home/.devenv/users.tsv
 devenv-admin user delete alice --remove-home
 ```
 
@@ -157,6 +172,31 @@ devenv-admin doctor
 devenv-admin healthcheck
 ```
 
+서비스 관리:
+
+```bash
+devenv-admin service status all
+devenv-admin service restart rstudio-server
+devenv-admin service restart shiny-server
+devenv-admin service restart sshd
+```
+
+로그 확인:
+
+```bash
+devenv-admin logs services --lines 120
+devenv-admin logs rstudio
+devenv-admin logs shiny
+devenv-admin logs ssh
+devenv-admin logs auth
+```
+
+관리 설정 백업:
+
+```bash
+devenv-admin config backup --output /home/.devenv/config-backup.tar.gz
+```
+
 RStudio 세션 초기화:
 
 ```bash
@@ -171,7 +211,7 @@ devenv-admin shiny init alice
 
 ## Smoke test
 
-테스트 컨테이너에서 새 관리 기능을 한 번에 확인하려면 `devenv-smoke-test`를 실행합니다. 이 스크립트는 테스트 사용자 생성, sudo 토글, SSH key 추가/삭제, SSH 비밀번호 인증 토글, OTP 활성화/면제/초기화/비활성화, RStudio/Shiny 관리 명령, `doctor`, `healthcheck`를 순서대로 실행합니다.
+테스트 컨테이너에서 새 관리 기능을 한 번에 확인하려면 `devenv-smoke-test`를 실행합니다. 이 스크립트는 테스트 사용자 생성, user inspect/export/import, sudo 토글, SSH key 추가/삭제, SSH 비밀번호 인증 토글, OTP 활성화/면제/초기화/비활성화, RStudio/Shiny 관리 명령, service/log/config 명령, `doctor`, `healthcheck`를 순서대로 실행합니다.
 
 운영 컨테이너에서는 실행하지 마세요. 기본 테스트 사용자 `devenvtest`와 OTP secret 같은 상태가 남고, SSH/RStudio 설정도 테스트 과정에서 변경됩니다.
 
