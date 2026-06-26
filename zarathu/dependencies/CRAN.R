@@ -21,7 +21,6 @@ packages <- c(
   "PredictABEL",
   "shinythemes",
   "maxstat",
-  "manhattanly",
   "Cairo",
   "future",
   "promises",
@@ -74,7 +73,8 @@ packages <- c(
   "httr",
   "shinybrowser",
   "pins",
-  "paws.storage"
+  "paws.storage",
+  "otelsdk"
 )
 
 installed <- rownames(installed.packages())

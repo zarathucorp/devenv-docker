@@ -6,7 +6,8 @@ repos <- c(
   "metrumresearchgroup/sinew",
   "jinseob2kim/jsmodule",
   "yihui/xaringan",
-  "emitanaka/anicon"
+  "emitanaka/anicon",
+  "sahirbhatnagar/manhattanly"
 )
 
 failed <- character()
