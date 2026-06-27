@@ -12,6 +12,22 @@ docker build -t devenv-docker:latest .
 
 CI는 `Dockerfile`을 사용해 Docker Hub와 GitHub Container Registry에 이미지를 배포합니다.
 
+## Docker Compose
+
+기본 실행:
+
+```bash
+docker compose up -d
+```
+
+기본 `compose.yml`은 `/home`을 `zarathu-home` named volume에 마운트하고, SSH는 호스트의 22번 포트 충돌을 피하기 위해 `2222:22`로 엽니다.
+
+접속:
+
+- Shiny: `http://<host>:3838`
+- RStudio: `http://<host>:8787`
+- SSH: `ssh -p 2222 <user>@<host>`
+
 ## Persistent home volume
 
 `/home`은 반드시 이미지/컨테이너 내부가 아니라 별도 Docker volume에 마운트해서 사용합니다. 이렇게 해야 이미지를 업데이트하거나 컨테이너를 새로 만들어도 사용자 파일, Shiny 앱, RStudio 설정, SSH key, OTP secret이 유지됩니다.

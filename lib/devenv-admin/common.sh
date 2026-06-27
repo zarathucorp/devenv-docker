@@ -29,9 +29,15 @@ require_root() {
 validate_username() {
     local username="$1"
 
-    if [[ ! "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
-        die "invalid username '${username}'. Use lowercase letters, numbers, underscore, and hyphen only."
+    if [[ ! "$username" =~ ^[a-z_][a-z0-9_.-]{0,31}$ ]]; then
+        die "invalid username '${username}'. Use lowercase letters, numbers, underscore, dot, and hyphen only."
     fi
+
+    case "$username" in
+        *..* | *.)
+            die "invalid username '${username}'. Dot cannot be repeated or used as the final character."
+            ;;
+    esac
 
     case "$username" in
         root | daemon | bin | sys | sync | games | man | lp | mail | news | uucp | proxy | www-data | backup | list | irc)

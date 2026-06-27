@@ -67,6 +67,45 @@ decode_authorized_key() {
     printf '%s' "$encoded" | base64_decode
 }
 
+name_requires_badname_option() {
+    [[ "$1" = *.* ]]
+}
+
+command_supports_badname_option() {
+    local command_name="$1"
+
+    command -v "$command_name" >/dev/null 2>&1 || return 1
+    "$command_name" --help 2>&1 | grep -q -- '--badname'
+}
+
+run_useradd() {
+    local username="$1"
+    shift
+    local -a command_args=(useradd)
+
+    if name_requires_badname_option "$username" && command_supports_badname_option useradd; then
+        command_args+=(--badname)
+    fi
+
+    command_args+=("$@")
+    command_args+=("$username")
+    "${command_args[@]}"
+}
+
+run_groupadd() {
+    local group_name="$1"
+    shift
+    local -a command_args=(groupadd)
+
+    if name_requires_badname_option "$group_name" && command_supports_badname_option groupadd; then
+        command_args+=(--badname)
+    fi
+
+    command_args+=("$@")
+    command_args+=("$group_name")
+    "${command_args[@]}"
+}
+
 set_user_sudo() {
     local username="$1"
     local state="$2"
@@ -206,7 +245,7 @@ user_add() {
         existed="yes"
         log "user ${username} already exists"
     else
-        useradd -m -s /bin/bash "$username"
+        run_useradd "$username" -m -s /bin/bash
         log "user ${username} created"
     fi
 
@@ -439,7 +478,7 @@ ensure_import_group() {
         die "group '${group_name}' already exists with a different gid"
     fi
 
-    groupadd -g "$gid" "$group_name"
+    run_groupadd "$group_name" -g "$gid"
     log "group ${group_name} created with gid ${gid}"
     printf '%s' "$group_name"
 }
@@ -498,7 +537,7 @@ import_user_row() {
         log "user ${username} already exists"
     else
         [ "$create_home" = "yes" ] || useradd_home_flag="-M"
-        useradd "$useradd_home_flag" -u "$uid" -g "$group_name" -d "$home_dir" -s "$shell" "$username"
+        run_useradd "$username" "$useradd_home_flag" -u "$uid" -g "$group_name" -d "$home_dir" -s "$shell"
         log "user ${username} created with uid:gid ${uid}:${gid}"
     fi
 
