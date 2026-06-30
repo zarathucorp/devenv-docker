@@ -1,0 +1,66 @@
+services:
+  workspace:
+    image: ghcr.io/zarathucorp/devenv:v20260626
+    container_name: workspace
+    restart: unless-stopped
+    hostname: workspace
+    init: true
+    stdin_open: true
+    tty: true
+    networks:
+      - front
+    # ports:
+    # - "3838:3838" # Shiny Server
+    # - "8787:8787" # RStudio Server
+    # - "2222:22" # SSH inside container. Use ssh -p 2222 USER@HOST.
+    environment:
+      DEVENV_SSH_PASSWORD_AUTH: "false"
+      DEVENV_RSERVER_OTP: "false"
+      # Optional first-user bootstrap. Prefer the password file over a plain env password.
+      # DEVENV_BOOTSTRAP_USER: "alice"
+      # DEVENV_BOOTSTRAP_PASSWORD_FILE: "/run/secrets/bootstrap-password"
+      # DEVENV_BOOTSTRAP_SUDO: "no"
+      # DEVENV_BOOTSTRAP_FORCE_PASSWORD: "false"
+    volumes:
+      - internship:/internship_volume:ro
+      - workspace:/home
+      # Optional bootstrap password file on the host.
+      # - /srv/zarathu-bootstrap-password:/run/secrets/bootstrap-password:ro
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/devenv-admin", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: local
+      options:
+        max-size: "200m"
+        max-file: "100"
+
+  ssh-proxy:
+    image: alpine/socat
+    container_name: workspace-ssh-proxy
+    restart: unless-stopped
+    networks:
+      - front
+    ports:
+      - "22222:2222"
+    depends_on:
+      - workspace
+    command:
+      - TCP-LISTEN:2222,fork,reuseaddr
+      - TCP:workspace:22
+
+volumes:
+  internship:
+    name: internship
+    external: true
+  workspace:
+    name: workspace
+    external: true
+
+networks:
+  front:
+    name: front
+    external: true
