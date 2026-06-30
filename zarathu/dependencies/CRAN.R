@@ -1,73 +1,316 @@
-install.packages('shiny')
-install.packages('quarto')
-install.packages('rmarkdown')
-install.packages('markdown')
-install.packages('DT')
-install.packages('data.table')
-install.packages('ggplot2')
-install.packages('devtools')
-install.packages('epiDisplay')
-install.packages('tableone')
-install.packages('svglite')
-install.packages('plotROC')
-install.packages('pROC')
-install.packages('labelled')
-install.packages('geepack')
-install.packages('lme4')
-install.packages('PredictABEL')
-install.packages('shinythemes')
-install.packages('maxstat')
-install.packages('manhattanly')
-install.packages('Cairo')
-install.packages('future')
-install.packages('promises')
-install.packages('GGally')
-install.packages('fst')
-install.packages('blogdown')
-install.packages('metafor')
-install.packages('roxygen2')
-install.packages('MatchIt')
-install.packages('distill')
-install.packages('lubridate')
-install.packages('testthat')
-install.packages('rversions')
-install.packages('spelling')
-install.packages('rhub')
-install.packages('remotes')
-install.packages('ggpmisc')
-install.packages('RefManageR')
-install.packages('tidyr')
-install.packages('shinytest')
-install.packages('ggpubr')
-install.packages('kableExtra')
-install.packages('timeROC')
-install.packages('survC1')
-install.packages('survIDINRI')
-install.packages('colourpicker')
-install.packages('shinyWidgets')
-install.packages('devEMF')
-install.packages('see')
-install.packages('aws.s3')
-install.packages('epiR')
-install.packages('zip')
-install.packages('keyring')
-install.packages('shinymanager')
-install.packages('kappaSize')
-install.packages('irr')
-install.packages('gsDesign')
-install.packages('jtools')
-install.packages('svydiags')
-install.packages('shinyBS')
-install.packages('highcharter')
-install.packages('forestplot')
-install.packages('qgraph')
-install.packages('bootnet')
-install.packages('rhandsontable')
-install.packages('meta')
-install.packages('showtext')
-install.packages('officer')
-install.packages('rvg')
-install.packages('httr')
-install.packages('shinybrowser')
-install.packages('pins')
-install.packages('paws.storage')
+cran_repo <- Sys.getenv("CRAN_REPO", "https://cloud.r-project.org")
+options(repos = c(CRAN = cran_repo))
+
+packages <- c(
+  "shiny",
+  "quarto",
+  "rmarkdown",
+  "markdown",
+  "DT",
+  "data.table",
+  "ggplot2",
+  "devtools",
+  "epiDisplay",
+  "tableone",
+  "svglite",
+  "plotROC",
+  "pROC",
+  "labelled",
+  "geepack",
+  "lme4",
+  "PredictABEL",
+  "shinythemes",
+  "maxstat",
+  "Cairo",
+  "future",
+  "promises",
+  "GGally",
+  "fst",
+  "blogdown",
+  "metafor",
+  "roxygen2",
+  "MatchIt",
+  "distill",
+  "lubridate",
+  "testthat",
+  "rversions",
+  "spelling",
+  "rhub",
+  "remotes",
+  "ggpmisc",
+  "RefManageR",
+  "tidyr",
+  "shinytest",
+  "ggpubr",
+  "kableExtra",
+  "timeROC",
+  "survC1",
+  "survIDINRI",
+  "colourpicker",
+  "shinyWidgets",
+  "devEMF",
+  "see",
+  "aws.s3",
+  "epiR",
+  "zip",
+  "keyring",
+  "shinymanager",
+  "kappaSize",
+  "irr",
+  "gsDesign",
+  "jtools",
+  "svydiags",
+  "shinyBS",
+  "highcharter",
+  "forestplot",
+  "qgraph",
+  "bootnet",
+  "rhandsontable",
+  "meta",
+  "showtext",
+  "officer",
+  "rvg",
+  "httr",
+  "shinybrowser",
+  "pins",
+  "paws.storage",
+  "otelsdk",
+  "consort",
+  "countrycode",
+  "echarts4r",
+  "epitools",
+  "ggplotify",
+  "gridGraphics",
+  "jose",
+  "packrat",
+  "PKI",
+  "R.cache",
+  "rsconnect",
+  "segmented",
+  "shinydashboard",
+  "styler",
+  "writexl",
+  "yulab.utils",
+  "AER",
+  "anytime",
+  "ape",
+  "AUC",
+  "bbmle",
+  "beeswarm",
+  "bench",
+  "betareg",
+  "BH",
+  "biglm",
+  "binGroup",
+  "broom.helpers",
+  "btergm",
+  "ca",
+  "candisc",
+  "cards",
+  "caret",
+  "carrier",
+  "cba",
+  "clock",
+  "collapse",
+  "conflicted",
+  "coro",
+  "covr",
+  "dbplyr",
+  "decor",
+  "deldir",
+  "DEoptimR",
+  "details",
+  "dfidx",
+  "dfoptim",
+  "DiagrammeR",
+  "dichromat",
+  "disposables",
+  "drc",
+  "dreamerr",
+  "dtplyr",
+  "emmeans",
+  "ergm",
+  "estimability",
+  "ff",
+  "fit.models",
+  "fixest",
+  "flexmix",
+  "FNN",
+  "gam",
+  "gamm4",
+  "gapminder",
+  "gargle",
+  "gclus",
+  "gee",
+  "geometries",
+  "ggbeeswarm",
+  "ggforce",
+  "ggplot2movies",
+  "ggraph",
+  "glmmTMB",
+  "glmnetUtils",
+  "gmm",
+  "gmp",
+  "googleAuthR",
+  "googledrive",
+  "googleLanguageR",
+  "googlesheets4",
+  "gower",
+  "graphlayouts",
+  "gsl",
+  "hardhat",
+  "heplots",
+  "here",
+  "hexbin",
+  "HSAUR3",
+  "ids",
+  "igraphdata",
+  "interp",
+  "ipred",
+  "IRdisplay",
+  "irlba",
+  "Kendall",
+  "kernlab",
+  "ks",
+  "Lahman",
+  "latticeExtra",
+  "leaps",
+  "LearnBayes",
+  "lfe",
+  "lintr",
+  "lm.beta",
+  "lmodel2",
+  "lobstr",
+  "locatexec",
+  "lpSolveAPI",
+  "lsmeans",
+  "magick",
+  "mapproj",
+  "maps",
+  "marginaleffects",
+  "margins",
+  "marquee",
+  "maxLik",
+  "mclust",
+  "MEMSS",
+  "merDeriv",
+  "mfx",
+  "micsr",
+  "miscTools",
+  "mlmRev",
+  "mlogit",
+  "mockr",
+  "modeldata",
+  "ModelMetrics",
+  "modeltests",
+  "modeltools",
+  "muhaz",
+  "multcompView",
+  "multicool",
+  "MuMIn",
+  "munsell",
+  "nanotime",
+  "network",
+  "nonnest2",
+  "nycflights13",
+  "optimx",
+  "palmerpenguins",
+  "partitions",
+  "patrick",
+  "pcaPP",
+  "permute",
+  "pheatmap",
+  "phylolm",
+  "phyr",
+  "piecewiseSEM",
+  "plm",
+  "poLCA",
+  "polyclip",
+  "pracma",
+  "prediction",
+  "profmem",
+  "qap",
+  "qpdf",
+  "randtoolbox",
+  "RcppCCTZ",
+  "RcppDate",
+  "reactlog",
+  "recipes",
+  "registry",
+  "repr",
+  "reprex",
+  "repurrrsive",
+  "rex",
+  "rgl",
+  "rle",
+  "rngWELL",
+  "robust",
+  "robustbase",
+  "roxygen2md",
+  "RPostgreSQL",
+  "rr2",
+  "rrcov",
+  "rsample",
+  "rsvg",
+  "rvest",
+  "scatterplot3d",
+  "selectr",
+  "semEff",
+  "seriation",
+  "sets",
+  "sfheaders",
+  "sfsmisc",
+  "shinycssloaders",
+  "slider",
+  "sna",
+  "sodium",
+  "sp",
+  "sparsevctrs",
+  "spData",
+  "speedglm",
+  "statmod",
+  "statnet.common",
+  "stringmagic",
+  "strucchange",
+  "systemfit",
+  "testit",
+  "tidygraph",
+  "tidyverse",
+  "TMB",
+  "trust",
+  "tseries",
+  "TSP",
+  "tweenr",
+  "unitizer",
+  "unix",
+  "vars",
+  "vdiffr",
+  "vegan",
+  "vipor",
+  "viridis",
+  "visNetwork",
+  "warp",
+  "webp",
+  "xmlparsedata",
+  "zeallot"
+)
+
+installed <- rownames(installed.packages())
+missing <- setdiff(packages, installed)
+
+if (length(missing) == 0) {
+  message("All CRAN packages are already installed.")
+} else {
+  ncpus <- max(1L, parallel::detectCores(logical = TRUE) - 1L)
+  message("Installing CRAN packages from ", cran_repo, ": ", paste(missing, collapse = ", "))
+  install.packages(missing, dependencies = NA, Ncpus = ncpus)
+}
+
+installed_after <- rownames(installed.packages())
+still_missing <- setdiff(packages, installed_after)
+
+if (length(still_missing) > 0) {
+  stop("Missing CRAN packages after installation: ", paste(still_missing, collapse = ", "))
+}
+
+message("Verified CRAN packages: ", length(packages), " requested, 0 missing.")
